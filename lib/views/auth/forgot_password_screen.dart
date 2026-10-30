@@ -1,95 +1,119 @@
-// ignore_for_file: use_build_context_synchronously
-
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:tutor_matchup/services/firebase_auth_services.dart';
 import 'package:tutor_matchup/utils/colors.dart';
 import 'package:tutor_matchup/widgets/custom_button.dart';
 import 'package:tutor_matchup/widgets/custom_text_field.dart';
-import 'package:tutor_matchup/widgets/custom_text_widget.dart';
 
-class ForgotPasswordScreen extends StatelessWidget {
+class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
+  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+}
+
+class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  bool _isSending = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendResetEmail() async {
+    if (!_formKey.currentState!.validate() || _isSending) return;
+    setState(() => _isSending = true);
+    try {
+      await FirebaseAuthService().resetPassword(_emailController.text);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password reset email sent.')),
+      );
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) return;
+      final message = error.code == 'user-not-found'
+          ? 'No account was found for that email.'
+          : 'Unable to send a reset email. Please try again.';
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Check your connection and try again.')),
+        );
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    TextEditingController emailController = TextEditingController();
     return Scaffold(
-      backgroundColor: whiteColor,
-      appBar: AppBar(
-        backgroundColor: whiteColor,
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Image.asset('assets/images/tutormatchup_logo.png'),
-              const CustomTextWidget(
-                text: 'Forgot Password?',
-                textColor: midnightBlueColor,
-                fontSize: 20,
-                fontWeight: FontWeight.w500,
-              ),
-              const SizedBox(
-                height: 10,
-              ),
-              const Text(
-                'Enter your Email, we will send you password reset link.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: coolGrayColor,
-                  fontFamily: 'Poppins',
-                  fontSize: 14,
+      appBar: AppBar(title: const Text('Reset password')),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Image.asset(
+                      'assets/images/tutormatchup_logo.png',
+                      height: 130,
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Forgot your password?',
+                      textAlign: TextAlign.center,
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                color: midnightBlueColor,
+                                fontWeight: FontWeight.w700,
+                              ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Enter the email address linked to your account and we will send a reset link.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: coolGrayColor),
+                    ),
+                    const SizedBox(height: 24),
+                    CustomTextField(
+                      controller: _emailController,
+                      hintText: 'name@example.com',
+                      labelText: 'Email',
+                      prefixIcon: const Icon(Icons.email_outlined),
+                      textInputType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.done,
+                      validator: (value) {
+                        final email = value?.trim() ?? '';
+                        return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                                .hasMatch(email)
+                            ? null
+                            : 'Enter a valid email address.';
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    _isSending
+                        ? const Center(child: CircularProgressIndicator())
+                        : CustomButton(
+                            onTap: _sendResetEmail,
+                            buttonText: 'Send reset link',
+                          ),
+                  ],
                 ),
               ),
-              const SizedBox(
-                height: 10,
-              ),
-              CustomTextField(
-                controller: emailController,
-                hintText: 'Your Email',
-                prefixIcon: const Icon(Icons.email_outlined),
-              ),
-              const SizedBox(
-                height: 10,
-              ),
-              CustomButton(
-                onTap: () async {
-                  final FirebaseAuthService authService = FirebaseAuthService();
-                  String email = emailController.text.trim();
-
-                  if (email.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: CustomTextWidget(
-                          text: 'Please enter an email address.',
-                        ),
-                      ),
-                    );
-                    return;
-                  }
-
-                  try {
-                    await authService.resetPassword(email);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: CustomTextWidget(
-                          text: 'Password reset email sent.',
-                        ),
-                      ),
-                    );
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error: $e'),
-                      ),
-                    );
-                  }
-                },
-                buttonText: 'Send Email',
-              ),
-            ],
+            ),
           ),
         ),
       ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:tutor_matchup/utils/colors.dart';
-import 'package:tutor_matchup/widgets/custom_text_widget.dart';
 
 class CustomButton extends StatelessWidget {
   final String buttonText;
@@ -24,41 +23,60 @@ class CustomButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final background = backgroundColor ?? lightBlueColor;
     return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: InkWell(
-        onTap: onTap,
-        child: Stack(
-          alignment: Alignment.centerLeft,
-          children: [
-            Container(
-              width: MediaQuery.of(context).size.width * 0.9,
-              height: MediaQuery.of(context).size.width * 0.14,
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: SizedBox(
+        width: MediaQuery.sizeOf(context).width * 0.9,
+        height: 52,
+        child: Material(
+          color: background,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
               decoration: BoxDecoration(
-                border:
-                    Border.all(color: buttonBorderColor ?? Colors.transparent),
-                color: backgroundColor ?? lightBlueColor,
-                borderRadius: BorderRadius.circular(5),
-              ),
-              child: Center(
-                child: CustomTextWidget(
-                  text: buttonText,
-                  fontWeight: FontWeight.w500,
-                  fontSize: textSize ?? 20,
-                  textColor: buttonTextColor,
+                border: Border.all(
+                  color: buttonBorderColor ?? Colors.transparent,
                 ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
+                children: [
+                  if (image != null) ...[
+                    Image.asset(
+                      image!,
+                      width: 26,
+                      height: 26,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        buttonText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: buttonTextColor ??
+                              (background == whiteColor
+                                  ? midnightBlueColor
+                                  : whiteColor),
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w600,
+                          fontSize: textSize ?? 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (image != null) const SizedBox(width: 38),
+                ],
               ),
             ),
-            if (image != null)
-              Positioned(
-                left: 5,
-                child: CircleAvatar(
-                  backgroundColor: Colors.transparent,
-                  backgroundImage:
-                      AssetImage(image!), // Use ! to ensure it's not null
-                ),
-              ),
-          ],
+          ),
         ),
       ),
     );

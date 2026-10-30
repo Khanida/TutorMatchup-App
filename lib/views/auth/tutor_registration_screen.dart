@@ -3,8 +3,6 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:io';
 
 import 'package:tutor_matchup/routes/routes.dart'; // Assuming this manages routing in your app
 import 'package:tutor_matchup/utils/colors.dart';
@@ -17,7 +15,7 @@ class TutorRegistrationScreen extends StatefulWidget {
   const TutorRegistrationScreen({super.key});
 
   @override
-  _TutorRegistrationScreenState createState() =>
+  State<TutorRegistrationScreen> createState() =>
       _TutorRegistrationScreenState();
 }
 
@@ -34,49 +32,56 @@ class _TutorRegistrationScreenState extends State<TutorRegistrationScreen> {
       TextEditingController();
 
   List<String> subjects = [];
-  late String selectedSubject;
+  String? selectedSubject;
   bool showOtherField = false;
   TextEditingController otherSubjectController = TextEditingController();
 
   String? selectedEducation;
   bool isOthersSelected = false;
-  File? resumeFile;
+  PlatformFile? resumeFile;
   List<String> selectedDays = [];
   bool isUploading = false;
 
-  TimeOfDay? startTime;
-  TimeOfDay? endTime;
-
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  bool _isSubmitting = false;
+  bool _isLoadingSubjects = true;
 
   @override
-  void initState(){
+  void initState() {
     super.initState();
     loadSubjects();
   }
 
   Future<void> loadSubjects() async {
-    final String response = await rootBundle.loadString('assets/subjects.json');
-    final List<dynamic> data = json.decode(response);
-    setState(() {
-      subjects = data.cast<String>();
-    });
+    try {
+      final response = await rootBundle.loadString('assets/subjects.json');
+      final data = json.decode(response) as List<dynamic>;
+      if (!mounted) return;
+      setState(() {
+        subjects = data.whereType<String>().toList();
+        _isLoadingSubjects = false;
+      });
+    } catch (error) {
+      debugPrint('Could not load tutor subjects: $error');
+      if (!mounted) return;
+      setState(() => _isLoadingSubjects = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not load subjects. Please retry.')),
+      );
+    }
   }
 
-  Future<void> _selectTimeRange(BuildContext context) async {
+  Future<void> _selectTimeRange() async {
     final TimeOfDay? pickedStartTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
     );
-    if (pickedStartTime != null) {
+    if (pickedStartTime != null && mounted) {
       final TimeOfDay? pickedEndTime = await showTimePicker(
         context: context,
         initialTime: pickedStartTime,
       );
-      if (pickedEndTime != null) {
+      if (pickedEndTime != null && mounted) {
         setState(() {
-          startTime = pickedStartTime;
-          endTime = pickedEndTime;
           timeController.text =
               '${pickedStartTime.format(context)} - ${pickedEndTime.format(context)}';
         });
@@ -108,242 +113,289 @@ class _TutorRegistrationScreenState extends State<TutorRegistrationScreen> {
 
   Future<String?> _uploadResume() async {
     if (resumeFile == null) return null;
-
-    setState(() {
-      isUploading = true;
-    });
-
-    try {
-      String fileName =
-          'resumes/${DateTime.now().millisecondsSinceEpoch.toString()}';
-      Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
-      UploadTask uploadTask = storageRef.putFile(resumeFile!);
-
-      await uploadTask.whenComplete(() => null);
-      String downloadUrl = await storageRef.getDownloadURL();
-
-      setState(() {
-        isUploading = false;
-      });
-
-      return downloadUrl;
-    } catch (e) {
-      setState(() {
-        isUploading = false;
-      });
-      return null;
+    final bytes = resumeFile!.bytes;
+    if (bytes == null) {
+      throw StateError('The selected file could not be read.');
     }
+
+    final extension = resumeFile!.extension?.toLowerCase();
+    final contentType = switch (extension) {
+      'pdf' => 'application/pdf',
+      'png' => 'image/png',
+      'jpg' || 'jpeg' => 'image/jpeg',
+      _ => 'application/octet-stream',
+    };
+    final storageRef = FirebaseStorage.instance.ref().child(
+        'resumes/${DateTime.now().millisecondsSinceEpoch}_${resumeFile!.name}');
+    await storageRef.putData(
+      bytes,
+      SettableMetadata(contentType: contentType),
+    );
+    return storageRef.getDownloadURL();
   }
 
   Future<void> _pickResumeFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'jpg', 'png', 'jpeg'],
-    );
-
-    if (result != null) {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'png', 'jpeg'],
+        withData: true,
+      );
+      if (result != null && mounted) {
+        final file = result.files.single;
+        if (file.bytes == null) {
+          throw StateError('The selected file could not be read.');
+        }
+        setState(() => resumeFile = file);
+      }
+    } catch (error) {
+      debugPrint('Resume selection failed: $error');
+      if (!mounted) return;
       setState(() {
-        resumeFile = File(result.files.single.path!);
+        resumeFile = null;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not select that file. Try again.')),
+      );
     }
   }
 
   Future<void> _registerAndNavigate() async {
-    // Ensure form is filled
-    if (nameController.text.isNotEmpty &&
+    if (_isSubmitting) return;
+    final isValid = nameController.text.trim().isNotEmpty &&
         emailController.text.isNotEmpty &&
-        passwordController.text.isNotEmpty &&
+        RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+            .hasMatch(emailController.text.trim()) &&
+        passwordController.text.length >= 6 &&
         phoneNoController.text.isNotEmpty &&
         selectedEducation != null &&
-        selectedEducation!.isNotEmpty && // Ensure it's not null or empty
+        (selectedEducation != 'Others' ||
+            othersEducationController.text.trim().isNotEmpty) &&
         availabilityController.text.isNotEmpty &&
         timeController.text.isNotEmpty &&
-        subjectsController.text.isNotEmpty) {
-      // Upload resume
-      String? resumeUrl = await _uploadResume();
+        selectedSubject != null &&
+        (selectedSubject != 'Others' ||
+            otherSubjectController.text.trim().isNotEmpty);
+    if (!isValid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Complete the required fields with valid information.'),
+        ),
+      );
+      return;
+    }
 
-      // Check if resumeUrl is null
-      if (resumeUrl == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to upload resume.')),
-        );
-        return; // Exit the function if the resume upload fails
-      }
-
-      // Navigate to the User Guidelines page with form data
+    setState(() {
+      _isSubmitting = true;
+      isUploading = resumeFile != null;
+    });
+    try {
+      final resumeUrl = await _uploadResume();
+      if (!mounted) return;
+      final chosenSubject = selectedSubject == 'Others'
+          ? otherSubjectController.text.trim()
+          : selectedSubject!;
       Navigator.pushNamed(
         context,
-        Routes.userGuidelines, // Your user guidelines page route
+        Routes.userGuidelines,
         arguments: {
-          'userType': 'tutor', // Add userType
-          'name': nameController.text,
-          'email': emailController.text,
-          'password': passwordController.text, // Pass the password
-          'phoneNo': phoneNoController.text,
+          'userType': 'tutor',
+          'name': nameController.text.trim(),
+          'email': emailController.text.trim(),
+          'password': passwordController.text,
+          'phoneNo': phoneNoController.text.trim(),
           'education': selectedEducation == 'Others'
-              ? othersEducationController.text
+              ? othersEducationController.text.trim()
               : selectedEducation,
           'availability': availabilityController.text,
           'experience': experienceController.text,
-          'subjects': subjectsController.text,
-          'resume': resumeUrl, // Rename to 'resume' for consistency
+          'subjects': chosenSubject,
+          'resume': resumeUrl,
         },
       );
-    } else {
-      // Show error message for missing fields
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields.')),
-      );
+    } catch (error) {
+      debugPrint('Tutor registration could not continue: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not upload your resume. Please try again.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+          isUploading = false;
+        });
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    phoneNoController.dispose();
+    availabilityController.dispose();
+    experienceController.dispose();
+    subjectsController.dispose();
+    timeController.dispose();
+    othersEducationController.dispose();
+    otherSubjectController.dispose();
+    super.dispose();
+  }
+
+  void _showRequiredFieldsMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Complete the required fields with valid information.'),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: whiteColor,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            const SizedBox(height: 40),
-            const CustomTextWidget(
-              text: 'Tutor Registration',
-              textColor: blackColor,
-              fontWeight: FontWeight.w700,
-              fontSize: 24,
-            ),
-            const SizedBox(height: 20),
-            CustomTextField(
-              controller: nameController,
-              hintText: 'Enter Your Name',
-            ),
-            CustomTextField(
-              controller: emailController,
-              hintText: 'Email',
-            ),
-            CustomTextField(
-              controller: passwordController,
-              hintText: 'Password',
-              suffixIcon: IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.visibility_off_outlined),
-              ),
-            ),
-            CustomTextField(
-              controller: phoneNoController,
-              hintText: 'Phone Number',
-            ),
-            const SizedBox(height: 5),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  hintText: 'Highest Level of Education',
-                  contentPadding:
-                      const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide: const BorderSide(),
+        backgroundColor: whiteColor,
+        appBar: AppBar(title: const Text('Tutor registration')),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              children: [
+                CustomTextField(
+                  controller: nameController,
+                  hintText: 'Enter Your Name',
+                ),
+                CustomTextField(
+                  controller: emailController,
+                  hintText: 'Email',
+                  textInputType: TextInputType.emailAddress,
+                ),
+                CustomTextField(
+                  controller: passwordController,
+                  hintText: 'Password (at least 6 characters)',
+                  suffixIcon: IconButton(
+                    onPressed: () {},
+                    icon: const Icon(Icons.visibility_off_outlined),
                   ),
                 ),
-                value: selectedEducation,
-                items: educationLevels.map((level) {
-                  return DropdownMenuItem<String>(
-                    value: level,
-                    child: Text(level),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedEducation = value;
-                    isOthersSelected = value == 'Others';
-                  });
-                },
-              ),
-            ),
-            if (isOthersSelected)
-              CustomTextField(
-                controller: othersEducationController,
-                hintText: 'Please specify your highest education',
-              ),
-            CustomTextField(
-              controller: availabilityController,
-              hintText: 'Availability',
-              onTap: _showDaySelectionModal,
-              readOnly: true,
-            ),
-            CustomTextField(
-              controller: timeController,
-              hintText: 'Preferred Time Range',
-              onTap: () => _selectTimeRange(context),
-              readOnly: true,
-            ),
-            CustomTextField(
-              controller: experienceController,
-              hintText: 'Previous Experience',
-            ),
-            Text('Subjects want to teach:'),
-            Wrap(
-              spacing: 8.0,
-              children: subjects.map((subject) {
-                return ChoiceChip(
-                  label: Text(subject),
-                  selected: selectedSubject == subject,
-                  onSelected: (bool selected) {
-                    setState(() {
-                      selectedSubject = (selected ? subject : null)!;
-                      showOtherField = selected && subject == "Others";
-                    });
-                  },
-                );
-              }).toList(),
-            ),
-            if (showOtherField)
-              TextField(
-                controller: otherSubjectController,
-                decoration: InputDecoration(
-                  labelText: 'Please specify other subject',
+                CustomTextField(
+                  controller: phoneNoController,
+                  hintText: 'Phone Number',
+                  textInputType: TextInputType.phone,
                 ),
-              ),
-      const SizedBox(height: 5),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: InkWell(
-                onTap: _pickResumeFile,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.attach_file, color: Colors.grey),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          resumeFile != null
-                              ? 'Resume Selected'
-                              : 'Attach Resume (PDF/Image)',
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            CustomButton(
-              buttonText: isUploading ? 'Uploading Resume...' : 'Next',
-              // onTap: isUploading ? null : _registerAndNavigate,
-              onTap: isUploading
-                  ? () {}
-                  : () async {
-                      await _registerAndNavigate();
+                const SizedBox(height: 5),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(
+                      hintText: 'Highest Level of Education',
+                    ),
+                    initialValue: selectedEducation,
+                    items: educationLevels.map((level) {
+                      return DropdownMenuItem<String>(
+                        value: level,
+                        child: Text(level),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedEducation = value;
+                        isOthersSelected = value == 'Others';
+                      });
                     },
+                  ),
+                ),
+                if (isOthersSelected)
+                  CustomTextField(
+                    controller: othersEducationController,
+                    hintText: 'Please specify your highest education',
+                  ),
+                CustomTextField(
+                  controller: availabilityController,
+                  hintText: 'Available Days',
+                  onTap: _showDaySelectionModal,
+                  readOnly: true,
+                ),
+                CustomTextField(
+                  controller: timeController,
+                  hintText: 'Preferred Time Range',
+                  onTap: _selectTimeRange,
+                  readOnly: true,
+                ),
+                CustomTextField(
+                  controller: experienceController,
+                  hintText: 'Previous Experience (optional)',
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _isLoadingSubjects
+                          ? 'Loading subjects...'
+                          : 'Subjects you teach',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: midnightBlueColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                ),
+                if (!_isLoadingSubjects)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: subjects.map((subject) {
+                        return ChoiceChip(
+                          label: Text(subject),
+                          selected: selectedSubject == subject,
+                          onSelected: (selected) {
+                            setState(() {
+                              selectedSubject = selected ? subject : null;
+                              showOtherField = selected && subject == 'Others';
+                              subjectsController.text = selected ? subject : '';
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                if (showOtherField)
+                  CustomTextField(
+                    controller: otherSubjectController,
+                    hintText: 'Please specify your subject',
+                  ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: OutlinedButton.icon(
+                    onPressed: _isSubmitting ? null : _pickResumeFile,
+                    icon: const Icon(Icons.attach_file),
+                    label: Text(resumeFile?.name ?? 'Attach resume (optional)'),
+                  ),
+                ),
+                if (isUploading) const LinearProgressIndicator(),
+                CustomButton(
+                  buttonText: _isSubmitting ? 'Please wait...' : 'Continue',
+                  onTap: _isSubmitting
+                      ? _showRequiredFieldsMessage
+                      : _registerAndNavigate,
+                ),
+                TextButton(
+                  onPressed: () =>
+                      Navigator.pushReplacementNamed(context, Routes.login),
+                  child: const Text('Already have an account? Sign in'),
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-        ],),));
+          ),
+        ));
   }
 
   void _showDaySelectionModal() {

@@ -20,98 +20,106 @@ class UpcommingLectureCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: MediaQuery.of(context).size.width * 0.9,
-      height: MediaQuery.of(context).size.width * 0.4,
       decoration: BoxDecoration(
-        color: lightBlueColor,
-        borderRadius: BorderRadius.circular(12),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF3887F5), Color(0xFF67A5FF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(10.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const CircleAvatar(
-                      child: Icon(Icons.person),
-                    ),
-                    const SizedBox(
-                      width: 20,
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CustomTextWidget(
-                          text: name,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          textColor: whiteColor,
-                        ),
-                        CustomTextWidget(
-                          text: subjects,
-                          fontSize: 14,
-                          textColor: const Color(0xFFCBE1FF),
-                        ),
-                      ],
-                    ),
-                  ],
+                const CircleAvatar(
+                  backgroundColor: Colors.white24,
+                  child: Icon(Icons.person_outline, color: whiteColor),
                 ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton(
-                    onPressed: onTap,
-                    icon: const Icon(
-                      Icons.keyboard_arrow_right_sharp,
-                      color: whiteColor,
-                      size: 40,
-                    ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CustomTextWidget(
+                        text: name,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        textColor: whiteColor,
+                      ),
+                      CustomTextWidget(
+                        text: subjects,
+                        fontSize: 12,
+                        textColor: const Color(0xFFE5F0FF),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Open class',
+                  onPressed: onTap,
+                  icon: const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: whiteColor,
                   ),
                 ),
               ],
             ),
-            const Divider(
-              indent: 30,
-              endIndent: 30,
-              color: Colors.white38,
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10),
+              child: Divider(height: 1, color: Colors.white38),
             ),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.calendar_month,
-                      color: whiteColor,
-                    ),
-                    const SizedBox(width: 5),
-                    CustomTextWidget(
-                      text: availableDays,
-                      textColor: whiteColor,
-                    )
-                  ],
+                Expanded(
+                  child: _SessionDetail(
+                    icon: Icons.calendar_month_outlined,
+                    text: availableDays,
+                  ),
                 ),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.alarm,
-                      color: whiteColor,
-                    ),
-                    const SizedBox(width: 5),
-                    CustomTextWidget(
-                      text: availableTime,
-                      textColor: whiteColor,
-                    ),
-                  ],
-                )
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _SessionDetail(
+                    icon: Icons.access_time_rounded,
+                    text: availableTime,
+                  ),
+                ),
               ],
-            )
+            ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _SessionDetail extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _SessionDetail({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.white, size: 18),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

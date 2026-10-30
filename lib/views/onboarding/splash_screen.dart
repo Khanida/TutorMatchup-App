@@ -1,37 +1,65 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 import 'package:tutor_matchup/routes/routes.dart';
+import 'package:tutor_matchup/services/firebase_auth_services.dart';
 import 'package:tutor_matchup/utils/colors.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
-  _SplashScreenState createState() => _SplashScreenState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(seconds: 3),
-  )..repeat();
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+  late final Animation<double> _scale = Tween<double>(
+    begin: 0.96,
+    end: 1,
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  Timer? _navigationTimer;
 
   @override
   void dispose() {
-    super.dispose();
+    _navigationTimer?.cancel();
     _controller.dispose();
+    super.dispose();
   }
 
   @override
   void initState() {
     super.initState();
-    Timer(
-      const Duration(seconds: 2),
-      () => Navigator.pushNamed(context, Routes.login),
-    );
+    _navigationTimer = Timer(const Duration(seconds: 2), _continue);
+  }
+
+  Future<void> _continue() async {
+    final auth = FirebaseAuthService();
+    final user = auth.getCurrentUser();
+    String? userType;
+    if (user != null) {
+      try {
+        final profile = await auth.getUserData(user.uid);
+        final role = profile?['userType'];
+        if (role == 'student' || role == 'tutor') userType = role as String;
+      } catch (error) {
+        debugPrint('Could not restore the signed-in profile: $error');
+      }
+    }
+
+    if (!mounted) return;
+    if (userType == null) {
+      Navigator.pushReplacementNamed(context, Routes.login);
+    } else {
+      Navigator.pushReplacementNamed(
+        context,
+        Routes.homeWrapper,
+        arguments: userType,
+      );
+    }
   }
 
   @override
@@ -40,23 +68,14 @@ class _SplashScreenState extends State<SplashScreen>
       backgroundColor: whiteColor,
       body: SafeArea(
         child: Center(
-          child: AnimatedBuilder(
-            animation: _controller,
-            child: const SizedBox(
+          child: ScaleTransition(
+            scale: _scale,
+            child: Image.asset(
+              'assets/images/tutormatchup_logo.png',
               height: 200,
               width: 200,
-              child: Center(
-                child: Image(
-                  image: AssetImage('assets/images/tutormatchup_logo.png'),
-                ),
-              ),
+              fit: BoxFit.contain,
             ),
-            builder: (BuildContext context, Widget? child) {
-              return Transform.scale(
-                scale: _controller.value * 1.0 * math.pi,
-                child: child,
-              );
-            },
           ),
         ),
       ),

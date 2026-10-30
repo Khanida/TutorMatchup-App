@@ -4,21 +4,23 @@ import 'package:tutor_matchup/widgets/appointed_tutor_card.dart';
 import '../../utils/colors.dart';
 import '../../widgets/custom_text_widget.dart';
 import 'package:tutor_matchup/routes/routes.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:tutor_matchup/services/firebase_auth_services.dart';
 
 class UpcomingScheduleScreen extends StatefulWidget {
-  const UpcomingScheduleScreen({super.key});
+  final String? userRole;
+
+  const UpcomingScheduleScreen({super.key, this.userRole});
 
   @override
   State<UpcomingScheduleScreen> createState() => _UpcomingScheduleScreenState();
 }
 
 class _UpcomingScheduleScreenState extends State<UpcomingScheduleScreen> {
-  String userRole = ''; // Initialize to empty
+  String userRole = '';
   bool isLoading = true;
+  String? loadError;
 
-  List<Map<String, dynamic>> schedules = []; // Dummy list for schedules
+  List<Map<String, String>> schedules = [];
 
   final TextEditingController classNameController = TextEditingController();
   final TextEditingController classSubjectController = TextEditingController();
@@ -29,54 +31,55 @@ class _UpcomingScheduleScreenState extends State<UpcomingScheduleScreen> {
   @override
   void initState() {
     super.initState();
-    _getUserRole();
-    _loadDummyData(); // This can be modified later to load from Firestore
+    userRole = widget.userRole ?? '';
+    _loadUserRole();
   }
 
-  void _loadDummyData() {
-    // Adjust this method to load actual data from Firestore later
+  void _loadDemoData() {
     schedules = List.generate(
       userRole == 'student' ? 10 : 5,
       (index) => {
-        'name': userRole == 'student'
-            ? 'Engr. Sarfaraz'
-            : 'Class ${index + 1} - 30 students',
+        'name': userRole == 'student' ? 'Engr. Sarfaraz' : 'Class ${index + 1}',
         'date': 'Monday, 15 April',
-        'time': '11:00 - 12:00 AM',
-        'subject': 'Mathematics',
+        'time': '11:00 am - 12:00 pm',
+        'subject': userRole == 'student' ? 'Mathematics' : '30 students · Maths',
       },
     );
   }
 
-  // Method to fetch user role from Firebase
-  Future<void> _getUserRole() async {
-    User? user = FirebaseAuth.instance.currentUser;
-
-    if (user != null) {
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      if (userDoc.exists) {
-        setState(() {
-          userRole =
-              userDoc['userType']; // Assume 'role' is the field in Firestore
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          isLoading = false; // No role found
-        });
+  Future<void> _loadUserRole() async {
+    try {
+      if (userRole.isEmpty) {
+        final user = FirebaseAuthService().getCurrentUser();
+        if (user != null) {
+          final profile = await FirebaseAuthService().getUserData(user.uid);
+          userRole = profile?['userType'] as String? ?? '';
+        }
       }
-    } else {
+      if (!mounted) return;
       setState(() {
-        isLoading = false; // No user signed in
+        if (userRole == 'student' || userRole == 'tutor') {
+          _loadDemoData();
+        }
+        isLoading = false;
+      });
+    } catch (error) {
+      debugPrint('Could not load schedule role: $error');
+      if (!mounted) return;
+      setState(() {
+        loadError = 'Could not load your account. Check your connection.';
+        isLoading = false;
       });
     }
   }
 
-  // Method to open a dialog to add new session
+  @override
+  void dispose() {
+    classNameController.dispose();
+    classSubjectController.dispose();
+    super.dispose();
+  }
+
   void _showAddSessionDialog() {
     showDialog(
       context: context,
@@ -126,8 +129,9 @@ class _UpcomingScheduleScreenState extends State<UpcomingScheduleScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                _addNewSession(); // Add new session
-                Navigator.of(context).pop(); // Close dialog
+                if (_addNewSession()) {
+                  Navigator.of(context).pop();
+                }
               },
               child: const Text('Schedule'),
             ),
@@ -137,48 +141,53 @@ class _UpcomingScheduleScreenState extends State<UpcomingScheduleScreen> {
     );
   }
 
-  // Method to select date using DatePicker
   Future<void> _selectDate() async {
     DateTime? picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
-      firstDate: DateTime(2020),
+      firstDate: DateTime.now(),
       lastDate: DateTime(2100),
     );
 
-    if (picked != null && picked != selectedDate) {
+    if (picked != null && picked != selectedDate && mounted) {
       setState(() {
         selectedDate = picked;
       });
     }
   }
 
-  // Method to select time using TimePicker
   Future<void> _selectTime() async {
     TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
     );
 
-    if (picked != null && picked != selectedTime) {
+    if (picked != null && picked != selectedTime && mounted) {
       setState(() {
         selectedTime = picked;
       });
     }
   }
 
-  // Method to add new session
-  Future<void> _addNewSession() async {
+  bool _addNewSession() {
+    if (classNameController.text.trim().isEmpty ||
+        classSubjectController.text.trim().isEmpty ||
+        selectedDate == null ||
+        selectedTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter a class name, subject, date, and time.'),
+        ),
+      );
+      return false;
+    }
+
     setState(() {
       schedules.add({
-        'name': classNameController.text,
-        'date': selectedDate != null
-            ? DateFormat('yyyy-MM-dd').format(selectedDate!)
-            : 'No date selected',
-        'time': selectedTime != null
-            ? selectedTime!.format(context)
-            : 'No time selected',
-        'subject': classSubjectController.text,
+        'name': classNameController.text.trim(),
+        'date': DateFormat('EEE, d MMM').format(selectedDate!),
+        'time': selectedTime!.format(context),
+        'subject': classSubjectController.text.trim(),
       });
     });
 
@@ -193,35 +202,16 @@ class _UpcomingScheduleScreenState extends State<UpcomingScheduleScreen> {
       const SnackBar(content: Text('New session added successfully!')),
     );
 
-    // Uncomment and modify to add to Firebase once connected
-    /*
-    try {
-      User? user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await FirebaseFirestore.instance.collection('sessions').add({
-          'tutorId': user.uid,
-          'name': classNameController.text,
-          'date': DateFormat('yyyy-MM-dd').format(selectedDate!),
-          'time': selectedTime!.format(context),
-          'subject': classSubjectController.text,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('New session added successfully!')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error adding session: $e')),
-      );
-    }
-    */
+    return true;
   }
 
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
+    }
+    if (loadError != null) {
+      return Center(child: Text(loadError!));
     }
 
     return Scaffold(
@@ -260,29 +250,28 @@ class _UpcomingScheduleScreenState extends State<UpcomingScheduleScreen> {
       ),
       backgroundColor: whiteColor,
       body: SafeArea(
-        child: ListView.builder(
-          shrinkWrap: true,
-          itemCount: schedules.length,
-          itemBuilder: (context, index) {
-            var schedule = schedules[index];
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 5.0),
-              child: SizedBox(
-                height: MediaQuery.of(context).size.height * 0.211,
-                child: AppointedTutorCard(
-                  onTap: () {
-                    //TODO: Pass arguments, i.e. data of class session being tapped.
-                    Navigator.pushNamed(context, Routes.classSession);
-                  },
-                  name: schedule['name'],
-                  date: schedule['date'],
-                  time: schedule['time'],
-                  subjects: schedule['subject'],
-                ),
+        child: schedules.isEmpty
+            ? const Center(
+                child: Text('Sign in to see your upcoming schedule.'),
+              )
+            : ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                itemCount: schedules.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final schedule = schedules[index];
+                  return AppointedTutorCard(
+                    onTap: () {
+                      Navigator.pushNamed(context, Routes.classSession);
+                    },
+                    name: schedule['name']!,
+                    date: schedule['date']!,
+                    time: schedule['time']!,
+                    subjects: schedule['subject']!,
+                  );
+                },
               ),
-            );
-          },
-        ),
       ),
       floatingActionButton: userRole == 'tutor' // Show FAB only for tutors
           ? FloatingActionButton(

@@ -9,8 +9,10 @@ class CustomTextField extends StatefulWidget {
   final IconButton? suffixIcon;
   final Icon? prefixIcon;
   final TextEditingController? controller;
-  final VoidCallback? onTap; // Add onTap callback for interaction
-  final bool readOnly; // Add readOnly to make the field non-editable
+  final VoidCallback? onTap;
+  final bool readOnly;
+  final TextInputAction? textInputAction;
+  final String? Function(String?)? validator;
 
   const CustomTextField({
     this.controller,
@@ -20,7 +22,9 @@ class CustomTextField extends StatefulWidget {
     this.labelText,
     this.prefixIcon,
     this.onTap,
-    this.readOnly = false, // Default to false to allow typing
+    this.readOnly = false,
+    this.textInputAction,
+    this.validator,
     super.key,
   });
 
@@ -52,19 +56,20 @@ class _CustomTextFieldState extends State<CustomTextField> {
               fontSize: 14,
             ),
           const SizedBox(height: 5),
-          TextField(
+          TextFormField(
             controller: widget.controller,
             obscureText: widget.suffixIcon != null ? _obscureText : false,
-            readOnly: widget.readOnly, // Set to true for non-editable fields
-            onTap: widget.onTap, // Call the onTap method when tapped
+            readOnly: widget.readOnly,
+            onTap: widget.onTap,
+            validator: widget.validator,
+            textInputAction: widget.textInputAction,
+            keyboardType: widget.textInputType,
             decoration: InputDecoration(
               prefixIcon: widget.prefixIcon,
               hintText: widget.hintText,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
-              ),
               suffixIcon: widget.suffixIcon != null
                   ? IconButton(
+                      tooltip: _obscureText ? 'Show password' : 'Hide password',
                       icon: Icon(
                         _obscureText
                             ? Icons.visibility_off_outlined
@@ -73,12 +78,10 @@ class _CustomTextFieldState extends State<CustomTextField> {
                       ),
                       onPressed: () {
                         _toggleObscureText();
-                        widget.suffixIcon?.onPressed?.call();
                       },
                     )
                   : null,
             ),
-            keyboardType: widget.textInputType,
           ),
         ],
       ),

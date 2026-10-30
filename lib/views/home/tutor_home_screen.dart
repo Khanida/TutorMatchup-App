@@ -5,131 +5,158 @@ import 'package:tutor_matchup/widgets/custom_text_widget.dart';
 import 'package:tutor_matchup/widgets/lecture_request_card.dart';
 import 'package:tutor_matchup/widgets/upcomming_lecture_card.dart';
 
-class TutorHomeScreen extends StatefulWidget {
+class TutorHomeScreen extends StatelessWidget {
   const TutorHomeScreen({super.key});
-
-  @override
-  // ignore: library_private_types_in_public_api
-  _TutorHomeScreenState createState() => _TutorHomeScreenState();
-}
-
-class _TutorHomeScreenState extends State<TutorHomeScreen> {
-  double upcomingClasses = 0.5; // Default height factor for upcoming tutors
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: whiteColor,
-      appBar: AppBar(
-        centerTitle: true,
-        title: const CustomTextWidget(
-          text: 'Tutor Home',
-          textColor: lightBlueColor,
-          fontWeight: FontWeight.w500,
-        ),
-        backgroundColor: whiteColor,
-      ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      CustomTextWidget(
-                        text: 'Hello, ',
-                        fontSize: 16,
-                        textColor: coolGrayColor,
+        child: CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+              sliver: SliverToBoxAdapter(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Your teaching hub',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(color: coolGrayColor),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Hi Hammad',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
+                                  color: midnightBlueColor,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ],
                       ),
-                      CustomTextWidget(
-                        text: 'Hi Hammad',
-                        fontWeight: FontWeight.w700,
-                        textColor: blackColor,
-                        fontSize: 20,
-                      ),
-                    ],
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.notifications_outlined),
-                      ),
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.menu),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ), //appba4/intro
-            const SizedBox(height: 10),
-            // Upcoming Tutors ListView
-            Expanded(
-              flex: (upcomingClasses * 100)
-                  .toInt(), // Dynamically adjust based on panel slide
-              child: ListView.builder(
-                itemCount: 4,
-                shrinkWrap: true,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8.0, vertical: 4.0),
-                    child: UpcommingLectureCard(
-                      onTap: () {
-                        //TODO: Pass class session data as arguements to class session screen.
-                        Navigator.pushNamed(context, Routes.classSession);
-                      },
-                      name: 'Class ${index + 1}',
-                      availableDays: 'Monday, 16 Sept',
-                      availableTime: '${index + 1}:00 - ${index + 2}:00 pm',
-                      subjects: (index % 2 == 0) ? 'Maths' : 'Biology',
                     ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: EdgeInsets.only(left: 10.0),
-                child: CustomTextWidget(
-                  text: 'Lecture Requests',
-                  fontWeight: FontWeight.w700,
-                  textColor: midnightBlueColor,
-                  fontSize: 16,
+                    IconButton.filledTonal(
+                      tooltip: 'Notifications',
+                      onPressed: () {},
+                      icon: const Icon(Icons.notifications_none_rounded),
+                    ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-            // Near Tutors ListView
-            Expanded(
-              flex: (100 - (upcomingClasses * 100))
-                  .toInt(), // Reverse of Upcoming Tutors
-              child: ListView.builder(
-                itemCount: 6,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8.0, vertical: 4.0),
+            const SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverToBoxAdapter(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _TutorMetric(
+                        label: 'Classes today',
+                        value: '2',
+                        icon: Icons.menu_book_rounded,
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: _TutorMetric(
+                        label: 'New requests',
+                        value: '6',
+                        icon: Icons.inbox_rounded,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
+              sliver: SliverToBoxAdapter(
+                child: Text(
+                  'Upcoming classes',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: midnightBlueColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 172,
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: 4,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: SizedBox(
+                        width: MediaQuery.sizeOf(context).width * 0.84,
+                        child: UpcommingLectureCard(
+                          onTap: () =>
+                              Navigator.pushNamed(context, Routes.classSession),
+                          name: 'Class ${index + 1}',
+                          availableDays: 'Monday, 16 Sept',
+                          availableTime: '${index + 1}:00 pm',
+                          subjects: index.isEven ? 'Mathematics' : 'Biology',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
+              sliver: SliverToBoxAdapter(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Lecture requests',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              color: midnightBlueColor,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ),
+                    Text(
+                      '6 waiting',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: lightBlueColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
                     child: LectureRequestCard(
                       name: 'Student ${index + 1}',
                       year: '3rd Year',
                       grade: 'CGPA 3.25',
-                      institute: index % 2 == 0
+                      institute: index.isEven
                           ? 'Mehran University'
                           : 'Sindh University',
                     ),
-                  );
-                },
+                  ),
+                  childCount: 6,
+                ),
               ),
             ),
           ],
@@ -139,32 +166,45 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> {
   }
 }
 
-class QuickAccessButton extends StatelessWidget {
-  final Icon icon;
-  final String text;
-  final VoidCallback onPressed;
+class _TutorMetric extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
 
-  const QuickAccessButton({
+  const _TutorMetric({
+    required this.label,
+    required this.value,
     required this.icon,
-    required this.text,
-    required this.onPressed,
-    super.key,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        IconButton(
-          icon: icon,
-          onPressed: onPressed,
-        ),
-        CustomTextWidget(
-          text: text,
-          textColor: blackColor,
-          fontSize: 14,
-        ),
-      ],
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: whiteColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE7ECF4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: lightBlueColor),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: midnightBlueColor,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          CustomTextWidget(
+            text: label,
+            textColor: coolGrayColor,
+            fontSize: 12,
+          ),
+        ],
+      ),
     );
   }
 }

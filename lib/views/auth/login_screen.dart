@@ -1,261 +1,201 @@
-// ignore_for_file: use_build_context_synchronously
-
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:tutor_matchup/routes/routes.dart';
+import 'package:tutor_matchup/services/firebase_auth_services.dart';
 import 'package:tutor_matchup/utils/colors.dart';
 import 'package:tutor_matchup/widgets/custom_button.dart';
 import 'package:tutor_matchup/widgets/custom_text_field.dart';
-import 'package:tutor_matchup/widgets/custom_text_widget.dart';
-import '../../services/firebase_auth_services.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
-  _LoginScreenState createState() => _LoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _signIn() async {
+    if (!_formKey.currentState!.validate() || _isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      final authService = FirebaseAuthService();
+      final user = await authService.login(
+        _emailController.text,
+        _passwordController.text,
+      );
+      if (user == null) {
+        throw StateError('Sign-in completed without returning a user.');
+      }
+
+      final profile = await authService.getUserData(user.uid);
+      final userType = profile?['userType'];
+      if (userType != 'student' && userType != 'tutor') {
+        await authService.signOut();
+        throw StateError(
+          'We could not find a valid student or tutor profile for this account.',
+        );
+      }
+
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        Routes.homeWrapper,
+        (_) => false,
+        arguments: userType,
+      );
+    } on FirebaseAuthException catch (error) {
+      if (mounted) {
+        final message = switch (error.code) {
+          'invalid-email' => 'Enter a valid email address.',
+          'user-disabled' => 'This account has been disabled.',
+          'user-not-found' || 'wrong-password' || 'invalid-credential' =>
+            'Email or password is incorrect.',
+          'too-many-requests' => 'Too many attempts. Please try again later.',
+          _ => 'Unable to sign in. Please try again.',
+        };
+        _showMessage(message);
+      }
+    } catch (error) {
+      if (mounted) {
+        _showMessage(error is StateError
+            ? error.message
+            : 'Could not load your account. Check your connection and try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: whiteColor,
-      body: SingleChildScrollView(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(
-              height: 50,
-            ),
-            const CustomTextWidget(
-              text: 'Hi, Welcome Back! 👋',
-              textColor: blackColor,
-              fontWeight: FontWeight.w700,
-              fontSize: 24,
-            ),
-            const SizedBox(
-              height: 40,
-            ),
-            CustomTextField(
-              controller: emailController,
-              hintText: 'example@gmail.com',
-              labelText: 'Email',
-            ),
-            const SizedBox(
-              height: 20,
-            ),
-            CustomTextField(
-              controller: passwordController,
-              hintText: 'Enter Your Password',
-              labelText: 'Password',
-              suffixIcon: IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.visibility_off_outlined),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Image.asset(
+                      'assets/images/tutormatchup_logo.png',
+                      height: 110,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Welcome back',
+                      textAlign: TextAlign.center,
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                color: midnightBlueColor,
+                                fontWeight: FontWeight.w700,
+                              ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Sign in to continue learning or teaching.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: coolGrayColor),
+                    ),
+                    const SizedBox(height: 28),
+                    CustomTextField(
+                      controller: _emailController,
+                      hintText: 'name@example.com',
+                      labelText: 'Email',
+                      textInputType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      validator: (value) {
+                        final email = value?.trim() ?? '';
+                        if (email.isEmpty ||
+                            !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                                .hasMatch(email)) {
+                          return 'Enter a valid email address.';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    CustomTextField(
+                      controller: _passwordController,
+                      hintText: 'Enter your password',
+                      labelText: 'Password',
+                      textInputAction: TextInputAction.done,
+                      suffixIcon: IconButton(
+                        onPressed: () {},
+                        icon: const Icon(Icons.visibility_outlined),
+                      ),
+                      validator: (value) => (value ?? '').isEmpty
+                          ? 'Enter your password.'
+                          : null,
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () =>
+                            Navigator.pushNamed(context, Routes.forgotPassword),
+                        child: const Text('Forgot password?'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : CustomButton(
+                            onTap: _signIn,
+                            buttonText: 'Sign in',
+                          ),
+                    const SizedBox(height: 14),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'New to TutorMatchup?',
+                          style: TextStyle(color: coolGrayColor),
+                        ),
+                        TextButton(
+                          onPressed: () =>
+                              Navigator.pushNamed(context, Routes.registeration),
+                          child: const Text('Create account'),
+                        ),
+                      ],
+                    ),
+                    TextButton(
+                      onPressed: () =>
+                          Navigator.pushNamed(context, Routes.userGuidelines),
+                      child: const Text('User guidelines'),
+                    ),
+                  ],
+                ),
               ),
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                RememberMeCheckbox(onChanged: (value) {}),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, Routes.forgotPassword);
-                  },
-                  child: const CustomTextWidget(
-                    text: 'Forgot Password?',
-                    textColor: lightCoralColor,
-                    fontSize: 15,
-                  ),
-                )
-              ],
-            ),
-            const SizedBox(
-              height: 40,
-            ),
-            _isLoading
-                ? const CircularProgressIndicator()
-                : CustomButton(
-                    onTap: () async {
-                      setState(() {
-                        _isLoading = true;
-                      });
-                      try {
-                        final FirebaseAuthService authService =
-                            FirebaseAuthService();
-                        await authService.login(
-                            emailController.text, passwordController.text);
-                        String userId = FirebaseAuth.instance.currentUser!.uid;
-                        DocumentSnapshot userDoc;
-
-// Check if the user exists in tutors collection
-                        userDoc = await FirebaseFirestore.instance
-                            .collection('tutors')
-                            .doc(userId)
-                            .get();
-                        if (!userDoc.exists) {
-                          // Check if the user exists in students collection
-                          userDoc = await FirebaseFirestore.instance
-                              .collection('students')
-                              .doc(userId)
-                              .get();
-                        }
-
-                        String userType = userDoc['userType'];
-// Redirect to the appropriate screen based on userType
-                        if (userType == 'student') {
-                          Navigator.pushReplacementNamed(
-                            context,
-                            Routes.homeWrapper,
-                            arguments: 'student',
-                          );
-                        } else if (userType == 'tutor') {
-                          Navigator.pushReplacementNamed(
-                            context,
-                            Routes.homeWrapper,
-                            arguments: 'tutor',
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Unknown user type')),
-                          );
-                        }
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error: $e'),
-                          ),
-                        );
-                      } finally {
-                        setState(() {
-                          _isLoading = false;
-                        });
-                      }
-                    },
-                    buttonText: 'Sign In',
-                  ),
-            const SizedBox(
-              height: 20,
-            ),
-            const Row(
-              children: <Widget>[
-                Expanded(
-                    child: Divider(
-                  indent: 40,
-                  endIndent: 20,
-                )),
-                Text("Or With"),
-                Expanded(
-                  child: Divider(
-                    indent: 20,
-                    endIndent: 40,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(
-              height: 20,
-            ),
-            CustomButton(
-              onTap: () {},
-              buttonText: 'Login With Facebook',
-              textSize: 18,
-              image: 'assets/images/facebook_logo.png',
-            ),
-            CustomButton(
-              onTap: () {},
-              buttonText: 'Login With Google',
-              backgroundColor: whiteColor,
-              buttonTextColor: Colors.black54,
-              buttonBorderColor: Colors.black54,
-              textSize: 18,
-              image: 'assets/images/google_logo.png',
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const CustomTextWidget(
-                  text: 'If you Don\'t have an account',
-                  textColor: Colors.black87,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 16,
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, Routes.registeration);
-                  },
-                  child: const CustomTextWidget(
-                    text: 'Sign-up',
-                    textColor: lightBlueColor,
-                    fontSize: 16,
-                  ),
-                )
-              ],
-            ),
-            const CustomTextWidget(
-              text: 'User Guidelines',
-              textColor: lightBlueColor,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            )
-          ],
+          ),
         ),
       ),
-    );
-  }
-}
-
-class RememberMeCheckbox extends StatefulWidget {
-  final bool initialValue;
-  final ValueChanged<bool> onChanged;
-
-  const RememberMeCheckbox({
-    super.key,
-    this.initialValue = false,
-    required this.onChanged,
-  });
-
-  @override
-  // ignore: library_private_types_in_public_api
-  _RememberMeCheckboxState createState() => _RememberMeCheckboxState();
-}
-
-class _RememberMeCheckboxState extends State<RememberMeCheckbox> {
-  late bool _isChecked;
-
-  @override
-  void initState() {
-    super.initState();
-    _isChecked = widget.initialValue;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Checkbox(
-          checkColor: blackColor,
-          activeColor: Colors.transparent,
-          value: _isChecked,
-          onChanged: (value) {
-            setState(() {
-              _isChecked = value ?? false;
-            });
-            widget.onChanged(_isChecked);
-          },
-        ),
-        const CustomTextWidget(
-          text: 'Remember Me',
-          textColor: blackColor,
-          fontWeight: FontWeight.w500,
-        ),
-      ],
     );
   }
 }

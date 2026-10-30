@@ -1,5 +1,5 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FirebaseAuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -9,7 +9,7 @@ class FirebaseAuthService {
     required String email,
     required String password,
     required String name,
-    required String userType, // 'tutor' or 'student'
+    required String userType,
     String? phoneNo,
     String? education,
     String? availability,
@@ -22,92 +22,87 @@ class FirebaseAuthService {
     String? preferredTime,
     String? resume,
   }) async {
-    try {
-      UserCredential userCredential =
-          await _firebaseAuth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+    if (userType != 'student' && userType != 'tutor') {
+      throw ArgumentError.value(userType, 'userType', 'Must be student or tutor');
+    }
 
-      User? user = userCredential.user;
+    final credential = await _firebaseAuth.createUserWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
+    final user = credential.user;
+    if (user == null) {
+      throw StateError('Firebase did not return a user after registration.');
+    }
 
-      if (user != null) {
-        // Save the common user data
-        final Map<String, Object> userData = {
-          'uid': user.uid,
-          'email': email,
-          'name': name,
-          'userType': userType,
-          'createdAt': FieldValue.serverTimestamp(),
-        };
-
-        // Save to specific collection
-        if (userType == 'tutor') {
-          await _firestore.collection('tutors').doc(user.uid).set({
-            ...userData,
+    final commonData = <String, Object?>{
+      'uid': user.uid,
+      'email': email.trim(),
+      'name': name.trim(),
+      'userType': userType,
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+    final roleData = userType == 'tutor'
+        ? <String, Object?>{
+            ...commonData,
             'phoneNo': phoneNo,
             'education': education,
             'availability': availability,
             'experience': experience,
             'subjects': subjects,
             'resume': resume,
-          });
-        } else if (userType == 'student') {
-          await _firestore.collection('students').doc(user.uid).set({
-            ...userData,
+          }
+        : <String, Object?>{
+            ...commonData,
             'institute': institute,
             'year': year,
             'learningFormat': learningFormat,
             'preferredDays': preferredDays,
             'preferredTime': preferredTime,
             'resume': resume,
-          });
-        }
-      }
+          };
 
-      return user;
-    } catch (e) {
-      rethrow;
-    }
+    final batch = _firestore.batch();
+    batch.set(_firestore.collection('users').doc(user.uid), commonData);
+    batch.set(
+      _firestore.collection(userType == 'tutor' ? 'tutors' : 'students').doc(
+            user.uid,
+          ),
+      roleData,
+    );
+    await batch.commit();
+    return user;
   }
 
-  // Reset password method
-  Future<void> resetPassword(String email) async {
-    try {
-      await _firebaseAuth.sendPasswordResetEmail(email: email);
-    } catch (e) {
-      rethrow;
-    }
+  Future<void> resetPassword(String email) {
+    return _firebaseAuth.sendPasswordResetEmail(email: email.trim());
   }
 
-  // Login method
   Future<User?> login(String email, String password) async {
-    try {
-      UserCredential userCredential =
-          await _firebaseAuth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      return userCredential.user;
-    } catch (e) {
-      rethrow;
-    }
+    final credential = await _firebaseAuth.signInWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
+    return credential.user;
   }
 
-  // Sign out method
-  Future<void> signOut() async {
-    await _firebaseAuth.signOut();
-  }
+  Future<void> signOut() => _firebaseAuth.signOut();
 
-  // Get current user method
-  User? getCurrentUser() {
-    return _firebaseAuth.currentUser;
-  }
+  User? getCurrentUser() => _firebaseAuth.currentUser;
 
-  // Fetch user data from Firestore
   Future<Map<String, dynamic>?> getUserData(String uid) async {
-    DocumentSnapshot userDoc =
-        await _firestore.collection('users').doc(uid).get();
-    return userDoc.data() as Map<String, dynamic>?;
+    final userDocument = await _firestore.collection('users').doc(uid).get();
+    if (userDocument.exists) {
+      return userDocument.data();
+    }
+
+    for (final collection in ['students', 'tutors']) {
+      final roleDocument =
+          await _firestore.collection(collection).doc(uid).get();
+      if (roleDocument.exists) {
+        return roleDocument.data();
+      }
+    }
+    return null;
   }
 }

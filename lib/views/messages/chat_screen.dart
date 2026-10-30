@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:tutor_matchup/models/message_model.dart';
+import 'package:tutor_matchup/models/user_model.dart';
 import 'package:tutor_matchup/utils/colors.dart';
-import 'package:tutor_matchup/widgets/custom_text_widget.dart';
-import '../../models/user_model.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -12,202 +12,146 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  _chatButtle(Message message, bool isMe) {
-    if (isMe) {
-      return Column(
-        children: [
-          Container(
-            alignment: Alignment.topRight,
-            child: Container(
-              constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.80),
-              padding: const EdgeInsets.all(10),
-              margin: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: lightBlueColor,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.2),
-                    spreadRadius: 1,
-                    blurRadius: 5,
-                  ),
-                ],
-              ),
-              child: CustomTextWidget(
-                text: message.text,
-                textColor: whiteColor,
-              ),
-            ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              CustomTextWidget(
-                text: message.time,
-                textColor: Colors.black54,
-                fontSize: 12,
-              ),
-              const SizedBox(
-                width: 10,
-              ),
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                        color: Colors.grey.withOpacity(0.5),
-                        blurRadius: 5,
-                        spreadRadius: 2),
-                  ],
-                ),
-                child: CircleAvatar(
-                  radius: 15,
-                  backgroundImage: NetworkImage(
-                    message.sender.imageUrl,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      );
-    } else {
-      return Column(
-        children: [
-          Column(
-            children: [
-              Container(
-                alignment: Alignment.topLeft,
-                child: Container(
-                  constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.80),
-                  padding: const EdgeInsets.all(10),
-                  margin: const EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    color: whiteColor,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.2),
-                        spreadRadius: 1,
-                        blurRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: CustomTextWidget(
-                    text: message.text,
-                    textColor: Colors.black54,
-                  ),
-                ),
-              ),
-              Row(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.grey.withOpacity(0.5),
-                            blurRadius: 5,
-                            spreadRadius: 2),
-                      ],
-                    ),
-                    child: CircleAvatar(
-                      radius: 15,
-                      backgroundImage: NetworkImage(
-                        message.sender.imageUrl,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(
-                    width: 10,
-                  ),
-                  CustomTextWidget(
-                    text: message.time,
-                    textColor: Colors.black54,
-                    fontSize: 12,
-                  )
-                ],
-              ),
-            ],
-          ),
-        ],
-      );
-    }
+  final _controller = TextEditingController();
+  final _scrollController = ScrollController();
+  final List<Message> _messages = [];
+  User? _recipient;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final argument = ModalRoute.of(context)?.settings.arguments;
+    _recipient = argument is User ? argument : null;
   }
 
-  _sendMessageArea() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      height: 60,
-      color: whiteColor,
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(
-              Icons.photo,
-              size: 25,
-              color: lightBlueColor,
-            ),
-          ),
-          const Expanded(
-            child: TextField(
-              decoration:
-                  InputDecoration.collapsed(hintText: 'Send a message...'),
-              textCapitalization: TextCapitalization.sentences,
-            ),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(
-              Icons.send,
-              size: 25,
-              color: lightBlueColor,
-            ),
-          ),
-        ],
-      ),
-    );
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _sendMessage() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _messages.add(Message(
+        sender: currentUser,
+        time: DateFormat.jm().format(DateTime.now()),
+        text: text,
+      ));
+    });
+    _controller.clear();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = ModalRoute.of(context)!.settings.arguments as User;
+    final recipient = _recipient;
     return Scaffold(
-      backgroundColor: whiteColor,
       appBar: AppBar(
-        backgroundColor: whiteColor,
-        title: CustomTextWidget(
-          text: user.name,
-          fontSize: 16,
-          textColor: lightBlueColor,
-        ),
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-          ),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
+        title: Text(recipient?.name ?? 'Conversation'),
       ),
       body: Column(
         children: [
           Expanded(
-            child: ListView.builder(
-              reverse: true,
-              padding: const EdgeInsets.all(10),
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                final Message message = messages[index];
-                final bool isMe = message.sender.id == currentUser.id;
-                return _chatButtle(message, isMe);
-              },
+            child: _messages.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(28),
+                      child: Text(
+                        recipient == null
+                            ? 'Open a conversation from your messages to start chatting.'
+                            : 'Start the conversation with ${recipient.name}.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyLarge
+                            ?.copyWith(color: coolGrayColor),
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final message = _messages[index];
+                      final isMe = message.sender.id == currentUser.id;
+                      return Align(
+                        alignment:
+                            isMe ? Alignment.centerRight : Alignment.centerLeft,
+                        child: Container(
+                          constraints: BoxConstraints(
+                              maxWidth:
+                                  MediaQuery.sizeOf(context).width * 0.78),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: isMe ? lightBlueColor : whiteColor,
+                            borderRadius: BorderRadius.circular(16),
+                            border: isMe
+                                ? null
+                                : Border.all(color: const Color(0xFFE7ECF4)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(message.text,
+                                  style: TextStyle(
+                                      color: isMe
+                                          ? whiteColor
+                                          : midnightBlueColor)),
+                              const SizedBox(height: 4),
+                              Text(message.time,
+                                  style: TextStyle(
+                                      color:
+                                          isMe ? Colors.white70 : coolGrayColor,
+                                      fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      textCapitalization: TextCapitalization.sentences,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => _sendMessage(),
+                      decoration: const InputDecoration(
+                        hintText: 'Write a message',
+                        prefixIcon: Icon(Icons.chat_bubble_outline),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    tooltip: 'Send message',
+                    onPressed: _sendMessage,
+                    icon: const Icon(Icons.send_rounded),
+                  ),
+                ],
+              ),
             ),
           ),
-          _sendMessageArea(),
         ],
       ),
     );

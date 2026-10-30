@@ -7,7 +7,6 @@ class ClassSessionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    bool isTutor = true;
     return Scaffold(
       backgroundColor: whiteColor,
       appBar: AppBar(

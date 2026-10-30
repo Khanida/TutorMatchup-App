@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:tutor_matchup/utils/colors.dart';
-import 'custom_text_widget.dart';
 
 class NearTutorCard extends StatelessWidget {
   final String name;
@@ -9,122 +8,129 @@ class NearTutorCard extends StatelessWidget {
   final String reviews;
   final String opensAt;
   final VoidCallback onPressed;
-  const NearTutorCard(
-      {required this.name,
-      required this.reviews,
-      required this.location,
-      required this.onPressed,
-      required this.opensAt,
-      required this.subjects,
-      super.key});
+
+  const NearTutorCard({
+    required this.name,
+    required this.reviews,
+    required this.location,
+    required this.onPressed,
+    required this.opensAt,
+    required this.subjects,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: MediaQuery.of(context).size.width * 0.9,
-      height: MediaQuery.of(context).size.width * 0.4,
-      decoration: BoxDecoration(
-        color: whiteColor,
-        borderRadius: BorderRadius.circular(12),
+    return Card(
+      margin: EdgeInsets.zero,
+      color: whiteColor,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: Color(0xFFE7ECF4)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(10.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const CircleAvatar(
-                      child: Icon(Icons.person),
-                    ),
-                    const SizedBox(
-                      width: 20,
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CustomTextWidget(
-                          text: name,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          textColor: midnightBlueColor,
-                        ),
-                        CustomTextWidget(
-                          text: subjects,
-                          fontSize: 14,
-                          textColor: lightPeriwinkleColor,
-                        ),
-                      ],
-                    ),
-                  ],
+                const CircleAvatar(
+                  backgroundColor: Color(0xFFEAF2FF),
+                  child: Icon(Icons.person_outline, color: lightBlueColor),
                 ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Row(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
-                        Icons.location_pin,
-                        color: coolGrayColor,
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: midnightBlueColor,
+                                  fontWeight: FontWeight.w700,
+                                ),
                       ),
-                      CustomTextWidget(
-                        text: location,
-                        textColor: coolGrayColor,
-                        fontSize: 14,
-                      ),
-                      IconButton(
-                        onPressed: onPressed,
-                        icon: const Icon(
-                          Icons.keyboard_arrow_right_sharp,
-                          color: coolGrayColor,
-                        ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subjects,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: coolGrayColor,
+                            ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-            const Divider(
-              indent: 30,
-              endIndent: 30,
-              color: Colors.white38,
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.alarm,
-                      color: amberColor,
-                    ),
-                    const SizedBox(width: 5),
-                    CustomTextWidget(
-                      text: reviews,
-                      textColor: amberColor,
-                    )
-                  ],
+                IconButton(
+                  tooltip: 'View tutor',
+                  onPressed: onPressed,
+                  icon: const Icon(Icons.arrow_forward_rounded),
+                  color: lightBlueColor,
                 ),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.alarm,
-                      color: lightBlueColor,
-                    ),
-                    const SizedBox(width: 5),
-                    CustomTextWidget(
-                      text: opensAt,
-                      textColor: lightBlueColor,
-                    ),
-                  ],
-                )
               ],
-            )
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Divider(height: 1, color: Color(0xFFE7ECF4)),
+            ),
+            Wrap(
+              spacing: 16,
+              runSpacing: 8,
+              children: [
+                _TutorDetail(
+                  icon: Icons.star_rounded,
+                  text: reviews,
+                  color: amberColor,
+                ),
+                _TutorDetail(
+                  icon: Icons.location_on_outlined,
+                  text: location,
+                  color: coolGrayColor,
+                ),
+                _TutorDetail(
+                  icon: Icons.access_time_rounded,
+                  text: opensAt,
+                  color: lightBlueColor,
+                ),
+              ],
+            ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _TutorDetail extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color color;
+
+  const _TutorDetail({
+    required this.icon,
+    required this.text,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 17, color: color),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: midnightBlueColor,
+              ),
+        ),
+      ],
     );
   }
 }

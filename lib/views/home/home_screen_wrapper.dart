@@ -17,13 +17,15 @@ class HomeWrapper extends StatefulWidget {
 
 class _HomeWrapperState extends State<HomeWrapper> {
   int _selectedIndex = 0;
-  late String userType;
+  String userType = 'student';
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    userType = ModalRoute.of(context)!.settings.arguments
-        as String; // Retrieve userType
+    final argument = ModalRoute.of(context)?.settings.arguments;
+    if (argument is String && (argument == 'student' || argument == 'tutor')) {
+      userType = argument;
+    }
   }
 
   @override
@@ -31,13 +33,13 @@ class _HomeWrapperState extends State<HomeWrapper> {
     final List<Widget> screens = userType == 'student'
         ? [
             const StudentHomeScreen(),
-            const UpcomingScheduleScreen(),
+            UpcomingScheduleScreen(userRole: userType),
             const InboxScreen(),
             const ProfileScreen(),
           ]
         : [
             const TutorHomeScreen(), // Ensure TutorHomeScreen is defined
-            const UpcomingScheduleScreen(),
+            UpcomingScheduleScreen(userRole: userType),
             const InboxScreen(),
             const ProfileScreen(),
           ];
@@ -45,31 +47,35 @@ class _HomeWrapperState extends State<HomeWrapper> {
     return Scaffold(
       backgroundColor: whiteColor,
       body: SafeArea(child: screens[_selectedIndex]),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
         backgroundColor: whiteColor,
-        selectedItemColor: lightBlueColor,
-        unselectedItemColor: Colors.grey,
-        onTap: (index) {
+        indicatorColor: lightPeriwinkleColor,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        onDestinationSelected: (index) {
           setState(() {
             _selectedIndex = index;
           });
         },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home_rounded),
             label: 'Home',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
+          NavigationDestination(
+            icon: Icon(Icons.calendar_today_outlined),
+            selectedIcon: Icon(Icons.calendar_today_rounded),
             label: 'Schedules',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline),
+          NavigationDestination(
+            icon: Icon(Icons.chat_bubble_outline_rounded),
+            selectedIcon: Icon(Icons.chat_bubble_rounded),
             label: 'Chats',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline_rounded),
+            selectedIcon: Icon(Icons.person_rounded),
             label: 'Profile',
           ),
         ],

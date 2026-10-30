@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:tutor_matchup/utils/colors.dart';
-import 'package:tutor_matchup/widgets/custom_text_widget.dart';
-import '../../models/message_model.dart';
+import 'package:tutor_matchup/models/message_model.dart';
 import 'package:tutor_matchup/routes/routes.dart';
+import 'package:tutor_matchup/utils/colors.dart';
 
 class InboxScreen extends StatelessWidget {
   const InboxScreen({super.key});
@@ -10,102 +9,76 @@ class InboxScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: whiteColor,
-      appBar: AppBar(
-        leading: const Icon(Icons.menu),
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.search),
-          ),
-        ],
-        backgroundColor: whiteColor,
-        centerTitle: true,
-        title: const CustomTextWidget(
-          text: 'Inbox',
-          textColor: lightBlueColor,
-        ),
-      ),
-      body: ListView.builder(
-        itemCount: chats.length,
-        itemBuilder: (context, index) {
-          final Message chat = chats[index];
-          return GestureDetector(
-            onTap: () {
-              Navigator.pushNamed(
-                context,
-                Routes.chat,
-                arguments: chat.sender, // User object passed as arguments
-              );
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-              child: Row(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.grey.withOpacity(0.5),
-                            blurRadius: 5,
-                            spreadRadius: 2),
-                      ],
-                    ),
-                    child: CircleAvatar(
-                      radius: 25,
-                      backgroundImage: NetworkImage(
-                        chat.sender.imageUrl,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    width: MediaQuery.of(context).size.width * 0.75,
-                    padding: const EdgeInsets.only(
-                      left: 20,
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            CustomTextWidget(
-                              text: chat.sender.name,
-                              textColor: Colors.black54,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                            CustomTextWidget(
-                              text: chat.time,
-                              textColor: Colors.grey,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(
-                          height: 10,
-                        ),
-                        Container(
-                          alignment: Alignment.topLeft,
-                          child: Text(
-                            chat.text,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Colors.black54,
-                              fontFamily: 'Poppins',
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+      appBar: AppBar(title: const Text('Messages')),
+      body: chats.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.chat_bubble_outline,
+                        size: 48, color: coolGrayColor.withValues(alpha: 0.7)),
+                    const SizedBox(height: 12),
+                    Text('Your conversations will appear here.',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                        textAlign: TextAlign.center),
+                  ],
+                ),
               ),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              itemCount: chats.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final chat = chats[index];
+                return Card(
+                  color: whiteColor,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: const BorderSide(color: Color(0xFFE7ECF4)),
+                  ),
+                  child: ListTile(
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    leading: CircleAvatar(
+                      backgroundColor: lightPeriwinkleColor,
+                      child: Text(chat.sender.initials,
+                          style: const TextStyle(
+                              color: midnightBlueColor,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                    title: Text(chat.sender.name,
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(chat.text,
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ),
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(chat.time,
+                            style: Theme.of(context).textTheme.labelSmall),
+                        if (chat.unread) ...[
+                          const SizedBox(height: 7),
+                          const CircleAvatar(
+                              radius: 4, backgroundColor: lightBlueColor),
+                        ],
+                      ],
+                    ),
+                    onTap: () => Navigator.pushNamed(
+                      context,
+                      Routes.chat,
+                      arguments: chat.sender,
+                    ),
+                  ),
+                );
+              },
             ),
-          );
-        },
-      ),
     );
   }
 }

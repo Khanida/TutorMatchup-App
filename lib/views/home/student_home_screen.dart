@@ -1,193 +1,243 @@
 import 'package:flutter/material.dart';
 import 'package:tutor_matchup/routes/routes.dart';
 import 'package:tutor_matchup/utils/colors.dart';
-import 'package:tutor_matchup/widgets/custom_text_field.dart';
-import 'package:tutor_matchup/widgets/custom_text_widget.dart';
 import 'package:tutor_matchup/widgets/near_tutor_card.dart';
 import 'package:tutor_matchup/widgets/upcomming_lecture_card.dart';
 
-class StudentHomeScreen extends StatelessWidget {
+class StudentHomeScreen extends StatefulWidget {
   const StudentHomeScreen({super.key});
 
   @override
+  State<StudentHomeScreen> createState() => _StudentHomeScreenState();
+}
+
+class _StudentHomeScreenState extends State<StudentHomeScreen> {
+  static const _tutors = [
+    {
+      'name': 'Mamtaz Pawnar',
+      'reviews': '4.8 (120 Reviews)',
+      'location': '1.8 Km',
+      'opensAt': 'Open at 4:00 pm',
+      'subjects': 'Physics Specialist',
+    },
+    {
+      'name': 'Ahmed Raza',
+      'reviews': '4.9 (86 Reviews)',
+      'location': '2.4 Km',
+      'opensAt': 'Open at 5:30 pm',
+      'subjects': 'Mathematics',
+    },
+    {
+      'name': 'Sana Ali',
+      'reviews': '4.7 (54 Reviews)',
+      'location': '3.1 Km',
+      'opensAt': 'Open at 3:00 pm',
+      'subjects': 'Biology Specialist',
+    },
+  ];
+
+  String _searchQuery = '';
+
+  @override
   Widget build(BuildContext context) {
+    final filteredTutors = _tutors.where((tutor) {
+      final searchableText =
+          '${tutor['name']} ${tutor['subjects']}'.toLowerCase();
+      return searchableText.contains(_searchQuery.toLowerCase().trim());
+    }).toList();
+
     return Scaffold(
-      backgroundColor: whiteColor,
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      CustomTextWidget(
-                        text: 'Hello, ',
-                        fontSize: 16,
-                        textColor: Color(0xFF8696BB),
+        child: CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+              sliver: SliverToBoxAdapter(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Good to see you',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(color: coolGrayColor),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Hi Sana Ali',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
+                                  color: midnightBlueColor,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ],
                       ),
-                      CustomTextWidget(
-                        text: 'Hi Sana Ali',
-                        fontWeight: FontWeight.w700,
-                        textColor: blackColor,
-                        fontSize: 20,
-                      ),
-                    ],
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.notifications_outlined),
-                      ),
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.menu),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ), //appba4/intro
-            const SizedBox(
-              height: 10,
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: 4,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8.0, vertical: 4.0),
-                    child: UpcommingLectureCard(
-                        onTap: () {
-                          //TODO: Pass class session data as arguements to classSession screen.
-                          Navigator.pushNamed(context, Routes.classSession);
-                        },
-                        name: 'Ahmed',
-                        availableDays: 'Monday-Tuesday',
-                        availableTime: '5:00 - 6:00 pm',
-                        subjects: 'Biology - Maths'),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            CustomTextField(
-              hintText: 'Search tutor or Subjects',
-              prefixIcon: const Icon(Icons.search),
-              onTap: () {
-                Navigator.pushNamed(context, Routes.searchResults);
-              },
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                QuickAccessButton(
-                  icon: const Icon(Icons.note_alt_outlined),
-                  text: 'Assignment',
-                  onPressed: () {},
-                ),
-                QuickAccessButton(
-                  icon: const Icon(Icons.person_add_alt_1),
-                  text: 'Tutors',
-                  onPressed: () {},
-                ),
-                QuickAccessButton(
-                  icon: const Icon(Icons.menu_book_outlined),
-                  text: 'Subjects',
-                  onPressed: () {},
-                ),
-                QuickAccessButton(
-                  icon: const Icon(Icons.house_rounded),
-                  text: 'Hybrid',
-                  onPressed: () {},
-                ),
-              ],
-            ),
-            const SizedBox(
-              height: 20,
-            ),
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: EdgeInsets.only(left: 10.0),
-                child: CustomTextWidget(
-                  text: 'Near Tutors',
-                  fontWeight: FontWeight.w700,
-                  textColor: midnightBlueColor,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-            const SizedBox(
-              height: 20,
-            ),
-            Expanded(
-              //TODO: Wrap around Future builder when working on backend, and create future function
-              child: ListView.builder(
-                itemCount: 6,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8.0, vertical: 4.0),
-                    child: NearTutorCard(
-                      name: 'Mamtaz Pawnar',
-                      reviews: '4.8 (120 Reviews)',
-                      location: '1.8 Km',
-                      opensAt: 'Open at 4:00pm',
-                      subjects: 'Physics Specialist',
-                      onPressed: () {
-                        Navigator.pushNamed(context, Routes.tutorDetails);
-                      },
                     ),
-                  );
-                },
+                    IconButton.filledTonal(
+                      tooltip: 'Notifications',
+                      onPressed: () {},
+                      icon: const Icon(Icons.notifications_none_rounded),
+                    ),
+                    const SizedBox(width: 8),
+                    const CircleAvatar(
+                      backgroundColor: lightPeriwinkleColor,
+                      child: Icon(Icons.person_outline, color: lightBlueColor),
+                    ),
+                  ],
+                ),
               ),
-            )
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              sliver: SliverToBoxAdapter(
+                child: TextField(
+                  onChanged: (value) => setState(() => _searchQuery = value),
+                  textInputAction: TextInputAction.search,
+                  decoration: const InputDecoration(
+                    hintText: 'Search tutors or subjects',
+                    prefixIcon: Icon(Icons.search_rounded),
+                  ),
+                ),
+              ),
+            ),
+            const SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverToBoxAdapter(
+                child: _SectionHeading(
+                  title: 'Upcoming sessions',
+                  subtitle: 'Keep your learning on track',
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 172,
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    _upcomingSessionCard(context, 'Ahmed', 'Biology · Maths'),
+                    _upcomingSessionCard(context, 'Mamtaz', 'Physics'),
+                    _upcomingSessionCard(context, 'Sana', 'Chemistry'),
+                  ],
+                ),
+              ),
+            ),
+            const SliverPadding(
+              padding: EdgeInsets.fromLTRB(20, 26, 20, 14),
+              sliver: SliverToBoxAdapter(
+                child: _SectionHeading(
+                  title: 'Tutors near you',
+                  subtitle: 'Find the right support for your goals',
+                ),
+              ),
+            ),
+            if (filteredTutors.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'No tutors match “$_searchQuery”. Try another name or subject.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: coolGrayColor),
+                    ),
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final tutor = filteredTutors[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: NearTutorCard(
+                          name: tutor['name']!,
+                          reviews: tutor['reviews']!,
+                          location: tutor['location']!,
+                          opensAt: tutor['opensAt']!,
+                          subjects: tutor['subjects']!,
+                          onPressed: () {
+                            Navigator.pushNamed(context, Routes.tutorDetails);
+                          },
+                        ),
+                      );
+                    },
+                    childCount: filteredTutors.length,
+                  ),
+                ),
+              ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _upcomingSessionCard(
+    BuildContext context,
+    String tutorName,
+    String subjects,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: SizedBox(
+        width: MediaQuery.sizeOf(context).width * 0.84,
+        child: UpcommingLectureCard(
+          onTap: () => Navigator.pushNamed(context, Routes.classSession),
+          name: tutorName,
+          availableDays: 'Today',
+          availableTime: '5:00 pm',
+          subjects: subjects,
         ),
       ),
     );
   }
 }
 
-class QuickAccessButton extends StatelessWidget {
-  final VoidCallback onPressed;
-  final Icon icon;
-  final String text;
-  const QuickAccessButton(
-      {required this.onPressed,
-      required this.icon,
-      required this.text,
-      super.key});
+class _SectionHeading extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _SectionHeading({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        IconButton(
-          icon: icon,
-          color: lightBlueColor,
-          onPressed: onPressed,
-        ),
-        const SizedBox(
-          height: 4,
-        ),
-        CustomTextWidget(
-          text: text,
-          textColor: coolGrayColor,
-        )
-      ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: midnightBlueColor,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            subtitle,
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: coolGrayColor),
+          ),
+        ],
+      ),
     );
   }
 }
